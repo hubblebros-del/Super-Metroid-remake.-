@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gandy's Nextbots - WebXR Edition</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            background-color: #000;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* MAIN MENU STYLES */
+        #main-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(15, 15, 25, 0.95), rgba(40, 10, 10, 0.95));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+        }
+
+        #main-menu h1 {
+            font-size: 56px;
+            color: #ffcc00;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 15px rgba(255, 204, 0, 0.6);
+            letter-spacing: 3px;
+        }
+
+        #main-menu p {
+            font-size: 18px;
+            color: #cccccc;
+            max-width: 600px;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .menu-btn {
+            padding: 16px 36px;
+            margin: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #000;
+            background: #ffcc00;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 204, 0, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .menu-btn:hover {
+            transform: scale(1.05);
+            background: #ffe066;
+            box-shadow: 0 6px 20px rgba(255, 204, 0, 0.6);
+        }
+
+        .menu-btn.vr-btn {
+            background: #00ff66;
+            box-shadow: 0 4px 15px rgba(0, 255, 102, 0.4);
+        }
+
+        .menu-btn.vr-btn:hover {
+            background: #66ff99;
+            box-shadow: 0 6px 20px rgba(0, 255, 102, 0.6);
+        }
+
+        /* IN-GAME HUD */
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        #hud {
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        #hud h2 {
+            margin: 0 0 5px 0;
+            font-size: 24px;
+            color: #ffcc00;
+        }
+
+        #hud p {
+            margin: 3px 0;
+            font-size: 16px;
+        }
+
+        #safezone-banner {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 255, 100, 0.25);
+            border: 2px solid #00ff66;
+            color: #00ff66;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 22px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0,255,102,0.8);
+            transition: opacity 0.5s ease;
+            opacity: 1;
+        }
+
+        #jumpscare-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        #jumpscare-overlay h2 {
+            color: white;
+            font-size: 64px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            animation: pulse 0.1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- MAIN MENU OVERLAY -->
+    <div id="main-menu">
+        <h1>GANDY'S NEXTBOTS</h1>
+        <p>Explore the flat grass map, stay inside the Safe Zone to survive, or step outside to run from Obunga, Sanic, Geminus, Scary, and Gandy!</p>
+        
+        <div>
+            <button id="start-pc-btn" class="menu-btn">PLAY (Desktop Mode)</button>
+            <button id="enter-xr-btn" class="menu-btn vr-btn">ENTER WEB XR</button>
+        </div>
+    </div>
+
+    <!-- GAME CANVAS & HUD -->
+    <div id="canvas-container"></div>
+    
+    <div id="ui-overlay">
+        <div id="hud">
+            <h2>Gandy's Nextbots</h2>
+            <p id="location-status">Status: In Safe Zone</p>
+            <p id="active-bots">Active Nextbots: 5</p>
+            <p id="stamina-display">Stamina: 100%</p>
+        </div>
+        <div id="safezone-banner">You spawn in a safe zone in the flat grass map</div>
+        <div id="instructions">
+            <b>Controls:</b> WASD / Arrows = Move | SHIFT = Sprint | Mouse = Look Around
+        </div>
+    </div>
+
+    <div id="jumpscare-overlay">
+        <h2 id="jumpscare-text">YOU DIED!</h2>
+    </div>
+
+    <!-- THREE.JS & WEBXR DEPENDENCIES -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+    <script>
+        class GandysNextbotsGame {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.xr.enabled = true;
+                this.container.appendChild(this.renderer.domElement);
+
+                this.player = {
+                    height: 1.8,
+                    speed: 8,
+                    sprintMultiplier: 1.6,
+                    stamina: 100,
+                    velocity: new THREE.Vector3(),
+                    direction: new THREE.Vector3(),
+                    inSafeZone: true,
+                    isAlive: true
+                };
+
+                this.safeZoneRadius = 15;
+                this.nextbots = [];
+                this.clock = new THREE.Clock();
+                this.keys = { forward: false, backward: false, left: false, right: false, sprint: false };
+
+                this.initAudio();
+                this.initScene();
+                this.initControls();
+                this.spawnNextbots();
+                this.setupMenuHandlers();
+
+                this.animate = this.animate.bind(this);
+                this.renderer.setAnimationLoop(this.animate);
+            }
+
+            initAudio() {
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                this.proximityOsc = this.audioCtx.createOscillator();
+                this.proximityGain = this.audioCtx.createGain();
+                this.proximityOsc.type = 'sawtooth';
+                this.proximityOsc.frequency.value = 60;
+                this.proximityGain.gain.value = 0;
+                this.proximityOsc.connect(this.proximityGain);
+                this.proximityGain.connect(this.audioCtx.destination);
+                this.proximityOsc.start();
+            }
+
+            playJumpscareSound() {
+                if (!this.audioCtx) return;
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, this.audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, this.audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(1, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + 0.5);
+            }
+
+            initScene() {
+                this.scene.background = new THREE.Color(0xa0a0a0);
+                this.scene.fog = new THREE.Fog(0xa0a0a0, 10, 120);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight.position.set(50, 100, 50);
+                dirLight.castShadow = true;
+                this.scene.add(dirLight);
+
+                // Flat Grass Floor
+                const floorGeo = new THREE.PlaneGeometry(300, 300);
+                const floorMat = new THREE.MeshStandardMaterial({ color: 0x3a7d32, roughness: 0.8 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.rotation.x = -Math.PI / 2;
+                floor.receiveShadow = true;
+                this.scene.add(floor);
+
+                // Grid Overlay
+                const grid = new THREE.GridHelper(300, 60, 0x000000, 0x225522);
+                grid.position.y = 0.01;
+                this.scene.add(grid);
+
+                // Safe Zone Dome
+                const safeZoneGeo = new THREE.CylinderGeometry(this.safeZoneRadius, this.safeZoneRadius, 6, 32, 1, true);
+                const safeZoneMat = new THREE.MeshBasicMaterial({ color: 0x00ff66, wireframe: true, transparent: true, opacity: 0.3 });
+                const safeZoneMesh = new THREE.Mesh(safeZoneGeo, safeZoneMat);
+                safeZoneMesh.position.set(0, 3, 0);
+                this.scene.add(safeZoneMesh);
+
+                this.camera.position.set(0, this.player.height, 0);
+            }
+
+            initControls() {
+                this.controls = new THREE.PointerLockControls(this.camera, document.body);
+
+                const onKeyDown = (e) => {
+                    switch (e.code) {
+                        case 'KeyW': case 'ArrowUp': this.keys.forward = true; break;
+                        case 'KeyS': case 'ArrowDown': this.keys.backward = true; break;
+                        case 'KeyA': case 'ArrowLeft': this.keys.left = true; break;
+                        case 'KeyD': case 'ArrowRight': this.keys.right = true; break;
+                        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
+                    }
+                };
+
+                const onKeyUp = (e) => {
+                    switch (e.code) {
+                        case 'KeyW': case 'ArrowUp': this.keys.forward = false; break;
+                        case 'KeyS': case 'ArrowDown': this.keys.backward = false; break;
+                        case 'KeyA': case 'ArrowLeft': this.keys.left = false; break;
+                        case 'KeyD': case 'ArrowRight': this.keys.right = false; break;
+                        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
+                    }
+                };
+
+                document.addEventListener('keydown', onKeyDown);
+                document.addEventListener('keyup', onKeyUp);
+            }
+
+            createNextbotTexture(name, colorHex) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = colorHex;
+                ctx.fillRect(0, 0, 256, 256);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '28px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(name, 128, 128);
+
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(80, 80, 20, 0, Math.PI * 2);
+                ctx.arc(176, 80, 20, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(128, 170, 40, 0, Math.PI);
+                ctx.stroke();
+
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            spawnNextbots() {
+                const wikiNextbots = [
+                    { name: 'Obunga', color: '#8b4513', speed: 9.0 },
+                    { name: 'Sanic', color: '#0000ff', speed: 12.0 },
+                    { name: 'Geminus', color: '#800080', speed: 10.0 },
+                    { name: 'Scary', color: '#ff0000', speed: 8.5 },
+                    { name: 'Gandy', color: '#ffaa00', speed: 11.0 }
+                ];
+
+                wikiNextbots.forEach((botData, idx) => {
+                    const texture = this.createNextbotTexture(botData.name, botData.color);
+                    const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+                    const geometry = new THREE.PlaneGeometry(3, 3);
+                    const mesh = new THREE.Mesh(geometry, material);
+
+                    const angle = (idx / wikiNextbots.length) * Math.PI * 2;
+                    const distance = this.safeZoneRadius + 30 + Math.random() * 30;
+                    
+                    mesh.position.set(Math.cos(angle) * distance, 1.5, Math.sin(angle) * distance);
+                    this.scene.add(mesh);
+
+                    this.nextbots.push({ mesh: mesh, name: botData.name, speed: botData.speed });
+                });
+            }
+
+            setupMenuHandlers() {
+                const menu = document.getElementById('main-menu');
+                const uiOverlay = document.getElementById('ui-overlay');
+                const startPcBtn = document.getElementById('start-pc-btn');
+                const enterXrBtn = document.getElementById('enter-xr-btn');
+
+                startPcBtn.addEventListener('click', () => {
+                    menu.style.display = 'none';
+                    uiOverlay.style.display = 'flex';
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+                    this.controls.lock();
+
+                    setTimeout(() => {
+                        const banner = document.getElementById('safezone-banner');
+                        if (banner) banner.style.opacity = '0';
+                    }, 5000);
+                });
+
+                enterXrBtn.addEventListener('click', async () => {
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+
+                    if (navigator.xr) {
+                        try {
+                            const session = await navigator.xr.requestSession('immersive-vr', {
+                                optionalFeatures: ['local-floor', 'bounded-floor']
+                            });
+                            this.renderer.xr.setSession(session);
+                            menu.style.display = 'none';
+                            uiOverlay.style.display = 'flex';
+                        } catch (err) {
+                            alert('WebXR VR session could not be started: ' + err.message);
+                        }
+                    } else {
+                        alert('WebXR is not supported on this device/browser.');
+                    }
+                });
+
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+
+            updatePlayer(delta) {
+                if (!this.player.isAlive) return;
+
+                let currentSpeed = this.player.speed;
+                if (this.keys.sprint && this.player.stamina > 0 && (this.keys.forward || this.keys.backward || this.keys.left || this.keys.right)) {
+                    currentSpeed *= this.player.sprintMultiplier;
+                    this.player.stamina = Math.max(0, this.player.stamina - delta * 30);
+                } else {
+                    this.player.stamina = Math.min(100, this.player.stamina + delta * 15);
+                }
+
+                document.getElementById('stamina-display').innerText = `Stamina: ${Math.round(this.player.stamina)}%`;
+
+                this.player.velocity.x -= this.player.velocity.x * 10.0 * delta;
+                this.player.velocity.z -= this.player.velocity.z * 10.0 * delta;
+
+                this.player.direction.z = Number(this.keys.forward) - Number(this.keys.backward);
+                this.player.direction.x = Number(this.keys.right) - Number(this.keys.left);
+                this.player.direction.normalize();
+
+                if (this.keys.forward || this.keys.backward) this.player.velocity.z -= this.player.direction.z * currentSpeed * 10.0 * delta;
+                if (this.keys.left || this.keys.right) this.player.velocity.x -= this.player.direction.x * currentSpeed * 10.0 * delta;
+
+                if (this.controls.isLocked) {
+                    this.controls.moveRight(-this.player.velocity.x * delta);
+                    this.controls.moveForward(-this.player.velocity.z * delta);
+                }
+
+                const playerDist = Math.sqrt(this.camera.position.x ** 2 + this.camera.position.z ** 2);
+                this.player.inSafeZone = playerDist <= this.safeZoneRadius;
+
+                const statusElement = document.getElementById('location-status');
+                if (this.player.inSafeZone) {
+                    statusElement.innerText = 'Status: In Safe Zone (Protected)';
+                    statusElement.style.color = '#00ff66';
+                } else {
+                    statusElement.innerText = 'Status: In Danger Zone';
+                    statusElement.style.color = '#ff3333';
+                }
+            }
+
+            updateNextbots(delta) {
+                if (!this.player.isAlive) return;
+
+                let minDistance = Infinity;
+
+                this.nextbots.forEach(bot => {
+                    bot.mesh.lookAt(this.camera.position.x, bot.mesh.position.y, this.camera.position.z);
+                    const dist = bot.mesh.position.distanceTo(this.camera.position);
+                    if (dist < minDistance) minDistance = dist;
+
+                    if (!this.player.inSafeZone) {
+                        const targetDir = new THREE.Vector3()
+                            .subVectors(this.camera.position, bot.mesh.position)
+                            .setY(0)
+                            .normalize();
+
+                        bot.mesh.position.add(targetDir.multiplyScalar(bot.speed * delta));
+
+                        if (dist < 1.8) {
+                            this.triggerJumpscare(bot.name);
+                        }
+                    }
+                });
+
+                if (this.proximityGain && !this.player.inSafeZone) {
+                    const volume = Math.max(0, 1 - minDistance / 40);
+                    this.proximityGain.gain.value = volume * 0.3;
+                    this.proximityOsc.frequency.value = 60 + (1 - minDistance / 40) * 120;
+                } else if (this.proximityGain) {
+                    this.proximityGain.gain.value = 0;
+                }
+            }
+
+            triggerJumpscare(botName) {
+                this.player.isAlive = false;
+                this.playJumpscareSound();
+
+                const overlay = document.getElementById('jumpscare-overlay');
+                document.getElementById('jumpscare-text').innerText = `KILLED BY ${botName.toUpperCase()}!`;
+                overlay.style.display = 'flex';
+
+                setTimeout(() => {
+                    this.camera.position.set(0, this.player.height, 0);
+                    overlay.style.display = 'none';
+                    this.player.isAlive = true;
+                }, 2500);
+            }
+
+            animate() {
+                const delta = this.clock.getDelta();
+                this.updatePlayer(delta);
+                this.updateNextbots(delta);
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            new GandysNextbotsGame();
+        });
+    </script>
+</body>
+</html>
